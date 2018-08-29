@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Train",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}\\train.py"
+        },
+        {
+            "name": "Python: Sample",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}\\sample.py"
+        },
+        {
+            "name": "Python: Current",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}"
+        }
+    ]
+}
