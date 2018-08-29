@@ -3,7 +3,7 @@ const fs = require('fs');
 var txt = fs.readFileSync("input.js");
 var n = txt.length;
 
-console.log(n);
+console.log("#input.js", n);
 
 var m =0;
 for (var i=0; i<n; i++)
@@ -12,6 +12,6 @@ for (var i=0; i<n; i++)
 		m++;
 	}
 
-console.log(m);
+console.log("#nonAscii", m);
 
 fs.writeFileSync("input.txt", txt);

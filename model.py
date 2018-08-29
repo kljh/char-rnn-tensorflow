@@ -1,8 +1,9 @@
 import tensorflow as tf
 from tensorflow.contrib import rnn
 from tensorflow.contrib import legacy_seq2seq
+
 import numpy as np
-import os, json
+import os
 
 class Model():
     def __init__(self, args, training=True):
@@ -47,34 +48,24 @@ class Model():
                                         [args.rnn_size, args.vocab_size])
             softmax_b = tf.get_variable("softmax_b", [args.vocab_size])
 
-        with tf.variable_scope('rnnlm_1'):
-            with tf.variable_scope('rnnlm'):
-                with tf.variable_scope('multi_rnn_cell'):
-                    with tf.variable_scope('cell_0'):
-                        with tf.variable_scope('cell_0'):
-                            with tf.variable_scope('lstm_cell'):
-                                with tf.variable_scope('add'):
-                                    y = tf.get_variable("y", [args.rnn_size])
 
         self.softmax_w = softmax_w
         self.softmax_b = softmax_b
-        self.wtfy = y
         
         # transform input to embedding
         embedding = tf.get_variable("embedding", [args.vocab_size, args.rnn_size])
-        inputsEmbedded = tf.nn.embedding_lookup(embedding, self.input_data)
+        embedded = tf.nn.embedding_lookup(embedding, self.input_data)
 
-        self.embedding = embedding
-        
         # dropout beta testing: double check which one should affect next line
         if training and args.output_keep_prob:
-            inputsEmbedded = tf.nn.dropout(inputsEmbedded, args.output_keep_prob)
+            embedded = tf.nn.dropout(embedded, args.output_keep_prob)
 
         # unstack the input to fits in rnn model
-        inputs = tf.split(inputsEmbedded, args.seq_length, 1)
+        inputs = tf.split(embedded, args.seq_length, 1)
         inputs = [tf.squeeze(input_, [1]) for input_ in inputs]
 
-        self.inputsEmbedded = inputsEmbedded
+        self.embedding = embedding
+        self.embedded = embedded
         self.inputs = inputs
 
         # loop function for rnn_decoder, which take the previous i-th cell's output and generate the (i+1)-th cell's input
@@ -116,17 +107,16 @@ class Model():
         tf.summary.histogram('loss', loss)
         tf.summary.scalar('train_loss', self.cost)
 
-    def sample(self, sess, chars, vocab, num=200, prime='The ', sampling_type=1):
-        #print("prime", prime)
+    def sample(self, sess, chars, vocab, num=200, prime='f', sampling_type=1):
+        print("prime", prime)
+        data = {}
         
         state = sess.run(self.cell.zero_state(1, tf.float32))
-        """
         for char in prime[:-1]:
             x = np.zeros((1, 1))
             x[0, 0] = vocab[char]
             feed = {self.input_data: x, self.initial_state: state}
             [state] = sess.run([self.final_state], feed)
-        """
 
         def weighted_pick(weights):
             t = np.cumsum(weights)
@@ -136,72 +126,32 @@ class Model():
         ret = prime
         char = prime[-1]
         for it in range(num):
-            #print("char", char, vocab[char])
-            
             x = np.zeros((1, 1))
             x[0, 0] = vocab[char]
             feed = {self.input_data: x, self.initial_state: state}
             
             # to augment
-            [probs, state, init_state, ine, ins, varis, softmax_w, softmax_b, wtfy, embedding] = sess.run([self.probs, self.final_state, self.initial_state, self.inputsEmbedded, self.inputs, self.cell.variables, self.softmax_w, self.softmax_b, self.wtfy, self.embedding ], feed) # weight
+            [ probs, final_state, init_state, embedding, input_embedded, input_squeezed, cell_variables, softmax_w, softmax_b ] = sess.run(
+                [ self.probs, self.final_state, self.initial_state, self.embedding, self.embedded, self.inputs, self.cell.variables, self.softmax_w, self.softmax_b ], feed)
             p = probs[0]
+            state = final_state
             
-            #print("p", probs)
-            #print("s", probs)
-            #print("bias0", bias0)
-            if it < 3 :
-                path = os.path.join("save", 'js', '_iter'+str(it)+'_input_embedded.json')
-                with open(path, 'w') as fo:
-                    #json.dump([x*1 for x in list(bias0) ], fo)
-                    json.dump(ine.tolist(), fo)
-            
-                path = os.path.join("save", 'js', '_iter'+str(it)+'_input_squeezed.json')
-                with open(path, 'w') as fo:
-                    #json.dump([x*1 for x in list(bias0) ], fo)
-                    json.dump([x.tolist() for x in ins], fo)
+            if it==0:
+                data["embedding"] = embedding.tolist()
+                data["cell_variables"] = [ v.tolist() for v in cell_variables ]
+                data["softmax_w"] = softmax_w.tolist()
+                data["softmax_b"] = softmax_b.tolist()
+                data["iterations"] = []
                 
-                path = os.path.join("save", 'js', '_iter'+str(it)+'_input_wtfy.json')
-                with open(path, 'w') as fo:
-                    #json.dump([x*1 for x in list(bias0) ], fo)
-                    json.dump(wtfy.tolist() , fo)
-            
-            if it == 0 or it == 1 :
-
-                path = os.path.join("save", 'js', '_iter'+str(it)+'__embedding.json')
-                with open(path, 'w') as fo:
-                    json.dump(embedding.tolist(), fo)
-            
-                path = os.path.join("save", 'js', '_iter'+str(it)+'__softmax_w.json')
-                with open(path, 'w') as fo:
-                    json.dump(softmax_w.tolist(), fo)
-                
-                path = os.path.join("save", 'js', '_iter'+str(it)+'__softmax_b.json')
-                with open(path, 'w') as fo:
-                    json.dump(softmax_b.tolist(), fo)
-                
-                for iv, vari in enumerate(varis):
-                    path = os.path.join("save", 'js', '_iter'+str(it)+'_variable'+str(iv)+'.json')
-                    with open(path, 'w') as fo:
-                        #json.dump([x*1 for x in list(bias0) ], fo)
-                        json.dump(vari.tolist(), fo)
-            
             if it < 3 :
-                for iv, stat in enumerate(state):
-                    path = os.path.join("save", 'js', '_iter'+str(it)+'_final_state'+str(iv)+'_c.json')
-                    with open(path, 'w') as fo:
-                        json.dump(stat.c.tolist(), fo, indent=4)
-                    path = os.path.join("save", 'js', '_iter'+str(it)+'_final_state'+str(iv)+'_h.json')
-                    with open(path, 'w') as fo:
-                        json.dump(stat.h.tolist(), fo, indent=4)
-
-            if it < 3 :
-                for iv, stat in enumerate(init_state):
-                    path = os.path.join("save", 'js', '_iter'+str(it)+'_init_state'+str(iv)+'_c.json')
-                    with open(path, 'w') as fo:
-                        json.dump(stat.c.tolist(), fo, indent=4)
-                    path = os.path.join("save", 'js', '_iter'+str(it)+'_init_state'+str(iv)+'_h.json')
-                    with open(path, 'w') as fo:
-                        json.dump(stat.h.tolist(), fo, indent=4)
+                iter_data = {}
+                iter_data["input_embedded"] = input_embedded.tolist()
+                iter_data["input_squeezed"] = [ x.tolist() for x in input_squeezed] 
+                iter_data["init_state_c"] = [ s.c.tolist() for s in init_state ]
+                iter_data["init_state_h"] = [ s.h.tolist() for s in init_state ]
+                iter_data["final_state_c"] = [ s.c.tolist() for s in final_state ]
+                iter_data["final_state_h"] = [ s.h.tolist() for s in final_state ]
+                data["iterations"].append(iter_data)
             
             if sampling_type == 0:
                 sample = np.argmax(p)
@@ -216,4 +166,4 @@ class Model():
             pred = chars[sample]
             ret += pred
             char = pred
-        return ret
+        return ret, data

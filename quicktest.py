@@ -2,14 +2,13 @@ import json
 import os, math
 import numpy as np
 
-def json_load(filename, asNp = True):
-	path = os.path.join("save", 'js', filename)
-	with open(path, 'r') as fi:
-		data = json.loads(fi.read())
-	
+path = os.path.join("save", 'js', "model_data.json")
+with open(path, 'r') as fi:
+	data = json.loads(fi.read())
+
+def check_dimensions(data, asNp = True):
 	if not asNp:
 		return data
-	
 	
 	if len(data)==1 and len(data[0])==1:
 		return np.matrix(data[0])
@@ -20,21 +19,21 @@ def json_load(filename, asNp = True):
 	else:
 		return np.matrix(data)
 	
-cv= json_load("_chars_vocab.json", False)
-embedding = json_load("_iter0__embedding.json") # 3D
-inputE = json_load("_iter0_input_embedded.json") # 3D
-inputS = json_load("_iter0_input_squeezed.json") # 3D
-inputS2 = json_load("_iter1_input_squeezed.json") # 3D
-initC = json_load("_iter0_init_state0_c.json") # 2D
-initH = json_load("_iter0_init_state0_h.json") # 2D
-finalC = json_load("_iter0_final_state0_c.json") # 2D
-finalH = json_load("_iter0_final_state0_h.json") # 2D
-finalC2 = json_load("_iter1_final_state0_c.json") # 2D
-finalH2 = json_load("_iter1_final_state0_h.json") # 2D
-var0 = json_load("_iter0_variable0.json")  # 2D
-var1 = json_load("_iter0_variable1.json")  # 1D !!
+embedding = check_dimensions(data["embedding"]) # 3D
+var0 = check_dimensions(data["cell_variables"][0])  # 2D
+var1 = check_dimensions(data["cell_variables"][1])  # 1D !!
+softmax_w = check_dimensions(data["softmax_w"])
+softmax_b = check_dimensions(data["softmax_b"])
 
-wtfy = json_load("_iter0_input_wtfy.json")
+inputE = check_dimensions(data["iterations"][0]["input_embedded"]) # 3D
+inputS = check_dimensions(data["iterations"][0]["input_squeezed"]) # 3D
+inputS2 = check_dimensions(data["iterations"][1]["input_squeezed"]) # 3D
+initC = check_dimensions(data["iterations"][0]["init_state_c"]) # 2D
+initH = check_dimensions(data["iterations"][0]["init_state_h"]) # 2D
+finalC = check_dimensions(data["iterations"][0]["final_state_c"]) # 2D
+finalH = check_dimensions(data["iterations"][0]["final_state_h"]) # 2D
+finalC2 = check_dimensions(data["iterations"][1]["final_state_c"]) # 2D
+finalH2 = check_dimensions(data["iterations"][1]["final_state_h"]) # 2D
 
 def nprint(x):
 	print(x.shape)
@@ -88,7 +87,7 @@ print(a, b, c)
 """
 
 #https://github.com/tensorflow/tensorflow/blob/r1.10/tensorflow/python/ops/rnn_cell_impl.py
-def lstm_cell(x, h, c, wtfy, split_permutation):
+def lstm_cell(x, h, c, split_permutation):
 	
 	#  GITHUB 
 	#  c_prev = array_ops.slice(state, [0, 0], [-1, self._num_units])
@@ -102,8 +101,6 @@ def lstm_cell(x, h, c, wtfy, split_permutation):
 	v = np.add(v, var1)
 	#print("vmultadd")
 	#nprint(v)
-	
-	y = np.negative(c)
 	
 	splits = [ 
 		v[ :, 0:n ],
@@ -155,14 +152,14 @@ h, c = initH, initC
 
 x = inputS
 stepprint(x, h, c)
-h, c = lstm_cell(x, h, c, wtfy, perm)
+h, c = lstm_cell(x, h, c, perm)
 print("errc", dst(c, finalC))
 print("errh", dst(h, finalH))
 #h, c = finalH, finalC
 
 x = inputS2
 stepprint(x, h, c)
-h, c = lstm_cell(x, h, c, wtfy, perm)
+h, c = lstm_cell(x, h, c, perm)
 print("errc", dst(c, finalC2))
 print("errh", dst(h, finalH2))
 
@@ -178,7 +175,7 @@ def tryall():
 					r = np.add( np.array(p), np.array([ 0, -1, -2, -3 ]) )
 					r = np.dot(r, r)
 					if r==0:
-						h2, c2 = lstm_cell(inputS, initH, initC, wtfy, [ a, b, c, d ])
+						h2, c2 = lstm_cell(inputS, initH, initC, [ a, b, c, d ])
 						err = c2[0,0] - finalC[0,0]
 						err = np.linalg.norm(np.subtract(c2, finalC))
 						print([ a, b, c, d ], "err", err)

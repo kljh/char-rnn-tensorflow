@@ -17,7 +17,7 @@ parser.add_argument('--save_dir', type=str, default='save/js',
                     help='directory to store checkpointed models')
 parser.add_argument('--log_dir', type=str, default='logs',
                     help='directory to store tensorboard logs')
-parser.add_argument('--save_every', type=int, default=500, # 1000
+parser.add_argument('--save_every', type=int, default=1000,
                     help='Save frequency. Number of passes between checkpoints of the model.')
 parser.add_argument('--init_from', type=str, default=None, #'save/js', # None
                     help="""continue training from saved model at this path (usually "save").
@@ -32,7 +32,7 @@ parser.add_argument('--init_from', type=str, default=None, #'save/js', # None
 # Model params
 parser.add_argument('--model', type=str, default='lstm',
                     help='lstm, rnn, gru, or nas')
-parser.add_argument('--rnn_size', type=int, default=24,  # 56  128
+parser.add_argument('--rnn_size', type=int, default=56,  #  128
                     help='size of RNN hidden state')
 parser.add_argument('--num_layers', type=int, default=1,  # 2
                     help='number of layers in the RNN')
