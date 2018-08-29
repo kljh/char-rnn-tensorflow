@@ -48,6 +48,7 @@ function stepprint(x, h, c) {
 	console.log ("c", shape(c))
 }
 
+console.log("text (Python)\n", data.text)
 console.log("embedding")
 nprint(embedding)
 console.log("input")
@@ -61,6 +62,9 @@ nprint(finalH)
 console.log("var")
 nprint(var0)
 nprint(var1)
+console.log("softmax")
+nprint(softmax_w)
+nprint(softmax_b)
 
 
 // https://github.com/tensorflow/tensorflow/blob/r1.10/tensorflow/python/ops/rnn_cell_impl.py
@@ -73,13 +77,13 @@ function lstm_cell(x, h, c) {
 	#  inputs, m_prev
 	*/
 	var v = [].concat(x, h)
-	console.log("vconcat")
-	nprint(v)
+	//console.log("vconcat")
+	//nprint(v)
 
 	var w = vecmatmul(v, var0)
 	var wb = vadd(w, var1)
-	console.log("vmultadd")
-	nprint(wb)
+	//console.log("vmultadd")
+	//nprint(wb)
 	
 	//  GITHUB    i = input_gate, j = new_input, f = forget_gate, o = output_gate
 	var wbi = wb.slice(0,n),
@@ -107,22 +111,77 @@ function lstm_cell(x, h, c) {
 }
 
 function test() {
+	console.log("\n ---- first iter ---- \n");
+
+	var txt = "";
 	var [ h, c ] = [ initH, initC ]
 
+	var input_char = data.prime[0]
+	x = data.embedding[data.vocab[input_char]];
+	console.log("x from embedding["+input_char+"/"+data.vocab[input_char]+"]", x);
 	x = inputS
 	stepprint(x, h, c)
 	var { h, c } = lstm_cell(x, h, c);
+	var next_char = softmax_output_layer_to_next_character(h);
+	txt += next_char[0].c;
 	console.log("errc", dst(c, finalC))
 	console.log("errh", dst(h, finalH))
-	//h, c = finalH, finalC
+	console.log("next_char", next_char.slice(0,10))
+	console.log("next_char random pick", pick_in_cumulative(next_char))
+	
+	console.log("\n ---- second iter ---- \n");
 
+	var input_char = 'c' // next_char[0].c;
+	x = data.embedding[data.vocab[input_char]];
+	console.log("x from embedding["+input_char+"/"+data.vocab[input_char]+"]", x);
 	x = inputS2
 	stepprint(x, h, c)
 	var { h, c } = lstm_cell(x, h, c) ;
+	var next_char = softmax_output_layer_to_next_character(h);
+	txt += next_char[0].c;
 	console.log("errc", dst(c, finalC2))
 	console.log("errh", dst(h, finalH2))
+	console.log("next_char", next_char.slice(0,10))
+	console.log("next_char random pick", pick_in_cumulative(next_char))
+	
+	console.log("\n ---- subsequent iters ---- \n");
+
+	for (var k=0; k<80;k++) {
+		input_char = next_char[0].c;
+		x = data.embedding[data.vocab[input_char]];
+		var { h, c } = lstm_cell(x, h, c) ;
+		var next_char = softmax_output_layer_to_next_character(h);
+		txt += pick_in_cumulative(next_char);
+	}
+	console.log("\n\n ---- GENERATED TEXT ---- \n" + txt + "\n")
+	return txt;
 }
 
+function softmax_output_layer_to_next_character(h) {
+	var w = vecmatmul(h, softmax_w);
+	var wb = vadd(w, softmax_b);
+	
+	var exp_wb = expv(wb);
+	var sum_exp_wb = exp_wb.reduce((acc,x) => acc+x);
+	var probs = vmulcste(exp_wb, 1.0/sum_exp_wb);
+	
+	var idx_to_char = data["chars"];
+	var char_prob = probs.map((prob, idx) => { return { c: idx_to_char[idx], prob: prob } });
+	var char_prob_top = char_prob.sort((a,b) => b.prob-a.prob) // .slice(0,10);
+	//console.log(char_prob_top);
+	return char_prob_top;
+}
+
+function pick_in_cumulative(next_char_probas) {
+	var unif = Math.random();
+	var cumul = 0;
+	for (var nc of next_char_probas) {
+		cumul += nc.prob;
+		if (unif<cumul) return nc.c;
+	}
+	console.log("UNLIKELY pick_in_cumulative, unif="+unif+", cumul up to "+cumul);
+	return "!";
+}
 
 // defining few NumPy utility fucntions 
 
@@ -154,6 +213,7 @@ function vectorize(f) {
 function sigmoid(x) { return 1. / (1.+Math.exp(-x)); }
 var sigmoidv = vectorize(sigmoid);
 var tanhv = vectorize(Math.tanh);
+var expv = vectorize(Math.exp);
 
 function dst(a, b) {
 	var tmp = vmul(vsub(a, b), vsub(a, b));
@@ -163,11 +223,12 @@ function dst(a, b) {
 function vadd(v1, v2) { return vop2(v1, v2, (a, b) => a+b) };
 function vsub(v1, v2) { return vop2(v1, v2, (a, b) => a-b) };
 function vmul(v1, v2) { return vop2(v1, v2, (a, b) => a*b) };
+function vdiv(v1, v2) { return vop2(v1, v2, (a, b) => a/b) };
 
 function vop2(v1, v2, op) {
 	var n = v1.length,  
 		n2 = v2.length;
-	if (n!=n2) throw new Error("vop dimension mismatch");
+	if (n!=n2) throw new Error("vop dimension mismatch." + n + " vs" + n2);
 
 	var w = new Array(n);
 	for (var k=0; k<n; k++)
@@ -175,8 +236,7 @@ function vop2(v1, v2, op) {
 	return w;	
 }
 
-function vaddcste(v, c) {
-	return v.map(x => x+c);	
-}
+function vaddcste(v, c) { return v.map(x => x+c); }
+function vmulcste(v, c) { return v.map(x => x*c); }
 
 test();
