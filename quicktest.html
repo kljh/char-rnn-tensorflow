@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recurrent Neural Network</title>
+<script src="save/js/model_data_layer1_n56.js"></script>
+<script src="quicktest.js"></script>
+
+<!--
+<script src="https://d3js.org/d3.v3.js"></script>
+<script src="d3scatter.js"></script>
+<link rel="stylesheet" href="d3scatter.css">
+-->
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<style>
+body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+h1, h2, h3, h4, h5, h6 {
+    font-family: "Crete Round", Cambria, Georgia, serif;
+    font-weight: normal;
+    /*color: #363B40;*/
+    clear: both;
+}
+
+h1 {
+    font-size: 2.25rem;
+    line-height: 2.5rem;
+    margin-bottom: 1.5rem;
+    letter-spacing: -1.5px;
+}
+
+h2 {
+    font-size: 1.5rem;
+    line-height: 1.875rem;
+    margin-bottom: 1.5rem;
+    letter-spacing: -1px;
+}
+
+h3 {
+    font-size: 1.125rem;
+    line-height: 1.5rem;
+    margin-bottom: 1.5rem;
+    letter-spacing: -1px;
+}
+
+label { display: inline-block; width: 180px; text-align: left; }
+
+em { font-weight: bold; }
+
+</style>
+<script>
+$(document).ready( function () {
+	/*
+	$.get("concrete_data.csv")
+	.done(onModelDataLoaded)
+	.fail(err => alert("failed to load data CSV. "+err));
+	*/
+	
+	onModelDataLoaded();
+	onInputChars(document.getElementById("text").value);
+	
+	$("#text").keyup(function (ev) {
+		var input = ev.target;
+		var txt = input.value;
+		var pos = input.selectionStart;
+		if (pos<txt.length) {
+			// only allow edition at the end
+			txt = txt.substr(0, pos);
+			input.value = txt;
+			$("#warning").html("Live RNN update: works with edition <u>at the end only</u>");
+		} else {
+			$("#warning").empty();
+		}
+		if (iterations.length>txt.length) {
+			console.log("truncating iterations");
+			iterations = iterations.slice(0, txt.length);
+		}
+		onInputChars(txt);
+	});
+	
+	var model, iterations;
+	function onModelDataLoaded()  {
+		model = model_from_data(data);
+		iterations = [ model_initial_state(model.num_layers, model.rnn_size) ];
+		console.log("model", model);
+		console.log("iterations", iterations);
+		
+		$("#info").html('<pre>Network info: \n'
+			+ ' num_layers: '+model.num_layers+(model.num_layers==1?' <span style="color: #DC143C;">(only)</span>':'')+'\n'
+			+ ' rnn_size: '+model.rnn_size+(model.rnn_size<64?' <span style="color: #DC143C;">(quite small)</span>':'')+'\n' + '</pre>');
+	}	
+
+	function onInputChars(txt) {
+		var last_iter ;
+		while ( iterations.length < (txt.length+1) ) 
+			last_iter = onInputCharAppend(txt[iterations.length-1]);
+		console.log(last_iter);
+		
+		var last_iter = iterations[iterations.length-1];
+		display_next_probas(last_iter)
+		return last_iter;
+	}
+	function onInputCharAppend(input_char) {
+		var last_iter = model_next_iter(model, iterations, input_char);
+		return last_iter;
+	}
+
+	function display_next_probas(last_iter) {
+		var probs = last_iter.next_char_probs.slice(0, 7);
+		var n = probs.length;
+		var html = "";
+		for (var i=0; i<n; i++) {
+			var c = probs[i].c;
+			if (c==" ") c = "[space]";
+			if (c=="\n") c = "[newline]";
+			if (c=="\r") c = "[linefeed]"
+			if (c=="\t") c = "[tab]";
+			var p = probs[i].prob;
+			var pct = Math.round(p*10000)/100;
+			var px = Math.round(p*1000);
+			html += '<div style="width:'+px+'px; height: 20px; background: lightblue; margin:5px; border-radius: 5px;"><div style="position: absolute;">&nbsp;<em>'+c+'</em> '+pct+'%</div></div>'
+		}
+		$("#probs").html(html);
+	}
+});
+</script>
+</head>
+
+<body>
+
+<h2>A quick dive into recurrent neural network (LSTM).</h2>
+
+<p>LTSM recurrent neural network working at character level trained on Javascript code.
+Try typing code in the text area below and see what it predicts as the next character. 
+Typical things it recognized well : a few keywords <tt>function</tt> and vocabulary <tt>length</tt>, common structures <tt>for (var i=0; i&lt;n; i++)</tt>, and a bit of indentation.</p>
+
+<div id="info"></div>
+<div id="warning" style="color: red;"></div>
+
+<p>Next character prediction:</p>
+<div id="probs"></div>
+<br/>
+<textarea id="text" cols="120" rows="8">function f(a, b,</textarea>
+<div id="plot"></div>
+
+<h2>A (not so) quick quiz about LSTM</h2>
+
+<p>Screenshot below from Tensorboard : <br/>
+This calculation graph is a Tensorflow LTSM cell. It is almost a direct transcription of formulas in Wikipedia article (and other sources).  
+But what is the <tt>y</tt> additive term highlighted in red ?
+</p>
+
+<p>
+<img src="LSTM.png">
+</p>
+
+
+<div style="height:50px;"></div>
+<div style="font-size: smaller;">
+
+	<p>
+	Refs 
+	<ul>
+	<li>Andrej Karpathy <a href="http://karpathy.github.io/2015/05/21/rnn-effectiveness/">The Unreasonable Effectiveness of Recurrent Neural Networks</a>
+	<li>Christopher Olah <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">Understanding LSTMs</a>
+	<!-- 
+	https://quickdraw.withgoogle.com/data/cat
+	https://www.tensorflow.org/tutorials/sequences/recurrent
+	-->
+	</ul>
+	</p>
+
+	<p>
+	Next steps : 
+	<ul>
+	<!-- <li>sample next characters automatically -->
+	<li>Display graphicaly network internal states
+	<li>Generating (and play) abc music notation (see <a href="https://abcjs.net/abcjs-editor.html">interactive editor</a> and many ML blogs)
+	<!--
+	http://touchpianist.com/
+	https://towardsdatascience.com/how-to-generate-music-using-a-lstm-neural-network-in-keras-68786834d4c5
+	https://highnoongmt.wordpress.com/2015/05/22/lisls-stis-recurrent-neural-networks-for-folk-music-generation/
+	https://github.com/paulrosen/abcjs
+	https://abcjs.net/abcjs-editor.html
+	http://www.hexahedria.com/2015/08/03/composing-music-with-recurrent-neural-networks/
+	https://magenta.tensorflow.org/performance-rnn
+	https://www.beepbox.co/
+	-->
+	</ul>
+	</p>
+
+</div>
+
+</body>
+
+</html>

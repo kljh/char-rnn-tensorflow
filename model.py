@@ -79,6 +79,7 @@ class Model():
         output = tf.reshape(tf.concat(outputs, 1), [-1, args.rnn_size])
 
         # output layer
+        self.output = output
         self.logits = tf.matmul(output, softmax_w) + softmax_b
         self.probs = tf.nn.softmax(self.logits)
 
@@ -131,8 +132,8 @@ class Model():
             feed = {self.input_data: x, self.initial_state: state}
             
             # to augment
-            [ probs, final_state, init_state, embedding, input_embedded, input_squeezed, cell_variables, softmax_w, softmax_b ] = sess.run(
-                [ self.probs, self.final_state, self.initial_state, self.embedding, self.embedded, self.inputs, self.cell.variables, self.softmax_w, self.softmax_b ], feed)
+            [ probs, final_state, init_state, embedding, input_embedded, input_squeezed, cell_variables, rnn_out, softmax_w, softmax_b ] = sess.run(
+                [ self.probs, self.final_state, self.initial_state, self.embedding, self.embedded, self.inputs, self.cell.variables, self.output, self.softmax_w, self.softmax_b ], feed)
             p = probs[0]
             state = final_state
             
@@ -151,6 +152,8 @@ class Model():
                 iter_data["init_state_h"] = [ s.h.tolist() for s in init_state ]
                 iter_data["final_state_c"] = [ s.c.tolist() for s in final_state ]
                 iter_data["final_state_h"] = [ s.h.tolist() for s in final_state ]
+                iter_data["rnn_out"] = rnn_out.tolist()
+                iter_data["probs"] = probs.tolist()
                 data["iterations"].append(iter_data)
             
             if sampling_type == 0:
