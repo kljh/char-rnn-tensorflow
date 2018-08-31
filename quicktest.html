@@ -82,6 +82,29 @@ $(document).ready( function () {
 		onInputChars(txt);
 	});
 	
+	// prevent losing focus on TAB key
+	$("textarea").keydown(function(e) {
+		if(e.keyCode === 9) { // tab was pressed
+			// get caret position/selection
+			var start = this.selectionStart;
+			var end = this.selectionEnd;
+
+			var $this = $(this);
+			var value = $this.val();
+
+			// set textarea value to: text before caret + tab + text after caret
+			$this.val(value.substring(0, start)
+						+ "\t"
+						+ value.substring(end));
+
+			// put caret at right position again (add one for the tab)
+			this.selectionStart = this.selectionEnd = start + 1;
+
+			// prevent the focus lose
+			e.preventDefault();
+		}
+	});
+	
 	var model, iterations;
 	function onModelDataLoaded()  {
 		model = model_from_data(data);
@@ -165,7 +188,8 @@ But what is the <tt>y</tt> additive term highlighted in red ?
 	<p>
 	Refs 
 	<ul>
-	<li>Andrej Karpathy <a href="http://karpathy.github.io/2015/05/21/rnn-effectiveness/">The Unreasonable Effectiveness of Recurrent Neural Networks</a>
+	<li>Andrej Karpathy <a href="http://karpathy.github.io/2015/05/21/rnn-effectiveness/">The Unreasonable Effectiveness of Recurrent Neural Networks</a> <br/>
+		and <a href="https://gist.github.com/karpathy/d4dee566867f8291f086">Minimal character-level Vanilla RNN model</a> in Python/numpy only.
 	<li>Christopher Olah <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">Understanding LSTMs</a>
 	<!-- 
 	https://quickdraw.withgoogle.com/data/cat
