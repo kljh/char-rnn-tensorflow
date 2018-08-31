@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Recurrent Neural Network</title>
-<script src="save/js/model_data_layer1_n56.js"></script>
+<script src="save/js/model_data_layer2_n56.js"></script>
 <script src="quicktest.js"></script>
 
 <!--
@@ -149,6 +149,34 @@ $(document).ready( function () {
 		}
 		$("#probs").html(html);
 	}
+
+	$("#sample").click(ev => sample(1));
+	$("#sample_random").click(ev => sample(2));
+	$("#sample_many").click(ev => { for (var i=0; i<80;i++) sample(3); });
+	function sample(mode) {
+		var last_iter = iterations[iterations.length-1];
+		
+		var txt = document.getElementById("text").value;
+		var last_char = txt[txt.length-1];
+		var next_char;
+		switch (mode) {
+			case 1:
+				next_char = last_iter.next_char_probs[0].c ;
+				break;
+			case 2:
+				next_char = pick_in_cumulative(last_iter.next_char_probs);
+				break;
+			case 3:
+				var pick_best = ([ "\n", "\t", "{", "}", "(", ")", "[", "]" ].indexOf(last_char)!=-1);
+				next_char  = pick_best
+					? last_iter.next_char_probs[0].c
+					: pick_in_cumulative(last_iter.next_char_probs);
+		}
+		txt += next_char;
+		document.getElementById("text").value = txt;
+		onInputChars(txt);
+	}
+
 });
 </script>
 </head>
@@ -159,14 +187,18 @@ $(document).ready( function () {
 
 <p>LTSM recurrent neural network working at character level trained on Javascript code.
 Try typing code in the text area below and see what it predicts as the next character. 
-Typical things it recognized well : a few keywords <tt>function</tt> and vocabulary <tt>length</tt>, common structures <tt>for (var i=0; i&lt;n; i++)</tt>, and a bit of indentation.</p>
+Typical things it recognized well : a few keywords <tt>function</tt>, <tt>this</tt> or <tt>return</tt> and vocabulary <tt>length</tt>, <tt>data</tt> or <tt>color</tt>, common structures <tt>for (var i=0; i&lt;n; i++)</tt>, and a bit of indentation (with detection of minified mode).</p>
 
 <div id="info"></div>
 <div id="warning" style="color: red;"></div>
 
 <p>Next character prediction:</p>
 <div id="probs"></div>
-<br/>
+<p><input id="sample" type="button" value="Use next best guess">
+<input id="sample_random" type="button" value="Pick one randomly">
+<input id="sample_many" type="button" value="Pick many"><br/>
+<span style="font-size: x-small;">"Pick randomly" : pick sampling uniformly in the cumulative distribution.</span>
+</p>
 <textarea id="text" cols="120" rows="8">function f(a, b,</textarea>
 <div id="plot"></div>
 
@@ -201,7 +233,6 @@ But what is the <tt>y</tt> additive term highlighted in red ?
 	<p>
 	Next steps : 
 	<ul>
-	<!-- <li>sample next characters automatically -->
 	<li>Display graphicaly network internal states
 	<li>Generating (and play) abc music notation (see <a href="https://abcjs.net/abcjs-editor.html">interactive editor</a> and many ML blogs)
 	<!--

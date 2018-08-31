@@ -1,4 +1,4 @@
-
+'use strict';
 
 function model_from_data(data) {
 	var model = {
@@ -10,7 +10,7 @@ function model_from_data(data) {
 		index_to_text : data["chars"],
 		
 		// embedding of wordinto a n-dimension space (using t-SNE, PCA, ...)
-		embedding: check_dimensions(data["embedding"]),
+		embedding: check_dim(data["embedding"]),
 		
 		// RNN layers
 		rnn_layers : [],
@@ -23,14 +23,14 @@ function model_from_data(data) {
 	var vars = data["cell_variables"];
 	for (var i=0; i<vars.length; i+=2) {
 		model.rnn_layers.push({
-			w: check_dimensions(vars[i]), 
-			b: check_dimensions(vars[i+1]) });
+			w: check_dim(vars[i]), 
+			b: vars[i+1].map((vL, iL) => check_dim(vL)) });
 	}
 	
 	return model;
 }
 
-function check_dimensions(data) {
+function check_dim(data) {
 	if (data.length==1 && data[0].length==1)
 		return data[0][0];
 	if (data.length==1)
@@ -93,7 +93,7 @@ function lstm_cell(x, h, c, lstm_prms) {
 	#  m_prev = array_ops.slice(state, [0, self._num_units], [-1, num_proj])
 	#  inputs, m_prev
 	*/
-	var v = [].concat(x, h)
+	var v = [].concat(x, h);
 	//console.log("vconcat")
 	//console.log(shape(v))
 
@@ -132,24 +132,23 @@ function lstm_cell(x, h, c, lstm_prms) {
 
 function test_node() {
 	var fs = require('fs');
-	data = JSON.parse(fs.readFileSync("save/js/model_data.json"));
-	
-	var0 = check_dimensions(data["cell_variables"][0])
-	var1 = check_dimensions(data["cell_variables"][1])
-	softmax_w = check_dimensions(data["softmax_w"])
-	softmax_b = check_dimensions(data["softmax_b"])
+	var data = JSON.parse(fs.readFileSync("save/js/model_data.json"));
+	var model = model_from_data(data);
+	var nL = model.num_layers;
 
-	inputE = check_dimensions(data["iterations"][0]["input_embedded"])
-	inputS = check_dimensions(data["iterations"][0]["input_squeezed"])
-	inputS2 = check_dimensions(data["iterations"][1]["input_squeezed"])
-	initC = check_dimensions(data["iterations"][0]["init_state_c"])
-	initH = check_dimensions(data["iterations"][0]["init_state_h"])
-	finalC = check_dimensions(data["iterations"][0]["final_state_c"])
-	finalH = check_dimensions(data["iterations"][0]["final_state_h"])
-	finalC2 = check_dimensions(data["iterations"][1]["final_state_c"])
-	finalH2 = check_dimensions(data["iterations"][1]["final_state_h"])
+	var inputE = check_dim(data["iterations"][0]["input_embedded"]),
+		inputS = check_dim(data["iterations"][0]["input_squeezed"]),
+		inputS2 = check_dim(data["iterations"][1]["input_squeezed"]),
+		initC = check_dim(data["iterations"][0]["init_state_c"]),
+		initH = check_dim(data["iterations"][0]["init_state_h"]),
+		finalC = check_dim(data["iterations"][0]["final_state_c"]),
+		finalH = check_dim(data["iterations"][0]["final_state_h"]),
+		finalC2 = check_dim(data["iterations"][1]["final_state_c"]),
+		finalH2 = check_dim(data["iterations"][1]["final_state_h"]);
 
+	console.log("num_layers:", nL)
 	console.log("text (Python):\n", data.text)
+	
 	console.log("input")
 	nprint(inputE)
 	nprint(inputS)
@@ -158,69 +157,81 @@ function test_node() {
 	nprint(initH)
 	nprint(finalC)
 	nprint(finalH)
-	console.log("var")
-	nprint(var0)
-	nprint(var1)
-	console.log("softmax")
-	nprint(softmax_w)
-	nprint(softmax_b)
-
-	var model = model_from_data(data);
-	var lstm_prms = model.rnn_layers[0];
 	
 	console.log("\n ---- first iter ---- \n");
 
 	var txt = "";
-	var [ h, c ] = [ initH, initC ]
-
+	var states = [];
+	
 	var input_char = data.prime[0]
 	var x = data.embedding[data.vocab[input_char]];
-	console.log("x from embedding["+input_char+"/"+data.vocab[input_char]+"]", x);
-	x = inputS
+	console.log("embedding x for input '"+input_char+"' ("+data.vocab[input_char]+") : ", x.slice(0,5));
+	var x = inputS;
+	console.log("embedding x expected : ", x.slice(0,5));
+	
+	var iL = 0;
+	var [ h, c ] = nL==1 ? [ initH, initC ] : [ check_dim(initH[iL]), check_dim(initC[iL]) ];
 	stepprint(x, h, c)
+	var lstm_prms = model.rnn_layers[iL];
 	var { h, c } = lstm_cell(x, h, c, lstm_prms);
+	states.push({ h, c });
+	console.log("errc", dst(c, nL==0 ? finalC : check_dim(finalC[0])));
+	console.log("errh", dst(h, nL==0 ? finalH : check_dim(finalH[0])))
+	
+	if (nL==2) {
+	
+	var x = h; // input is output of previous layer
+	
+	var iL = 1;
+	var [ h, c ] = nL==1 ? [ initH, initC ] : [ check_dim(initH[iL]), check_dim(initC[iL]) ];
+	stepprint(x, h, c)
+	var lstm_prms = model.rnn_layers[iL];
+	var { h, c } = lstm_cell(x, h, c, lstm_prms);
+	states.push({ h, c });
+	console.log("errc", dst(c, nL==0 ? finalC : check_dim(finalC[nL-1])));
+	console.log("errh", dst(h, nL==0 ? finalH : check_dim(finalH[nL-1])))
+	
+	}
+	
 	var probs = softmax_output_layer_to_probs(h, model);
 	var next_char_probs = softmax_output_layer_to_next_character(h, model);
 	var next_char = next_char_probs[0].c;
 	txt += next_char;
-	console.log("errc", dst(c, finalC))
-	console.log("errh", dst(h, finalH))
-	//console.log("errp", dst(probs, check_dimensions(data.iterations[0].probs)))
-	console.log("next_char", next_char_probs.slice(0,10))
-	console.log("next_char random pick", pick_in_cumulative(next_char_probs))
 	
-	console.log("\n ---- second iter ---- \n");
-
-	var input_char = 'c' // next_char;
-	x = data.embedding[data.vocab[input_char]];
-	console.log("x from embedding["+input_char+"/"+data.vocab[input_char]+"]", x);
-	x = inputS2
-	stepprint(x, h, c)
-	var { h, c } = lstm_cell(x, h, c, lstm_prms) ;
-	var next_char_probs = softmax_output_layer_to_next_character(h, model);
-	var next_char = next_char_probs[0].c;
-	txt += next_char;
-	console.log("errc", dst(c, finalC2))
-	console.log("errh", dst(h, finalH2))
-	//console.log("errp", dst(probs, check_dimensions(data.iterations[1].probs)))
-	console.log("next_char", next_char_probs.slice(0,10))
-	console.log("next_char random pick", pick_in_cumulative(next_char_probs))
+	console.log("errp", dst(probs, check_dim(data.iterations[0].probs)))
+	console.log();
+	console.log("next_char_probs", next_char_probs.slice(0,10))
+	console.log("next_char (max likelyhood pick)", next_char_probs[0].c);
+	console.log("next_char (random pick)", pick_in_cumulative(next_char_probs));
 	
 	console.log("\n ---- subsequent iters ---- \n");
 
 	for (var k=0; k<380;k++) {
+		
 		input_char = next_char;
 		x = data.embedding[data.vocab[input_char]];
-		var { h, c } = lstm_cell(x, h, c, lstm_prms) ;
-		var next_char_probs = softmax_output_layer_to_next_character(h, model);
-		var next_char = pick_in_cumulative(next_char_probs)
-		if (txt[txt.length-1]==next_char) {
-			console.log(next_char_probs.slice(0,25));
-			next_char = 'a';
-		}
-		txt += next_char;
 		
+		var prev_states = states;
+		var states = [];
+		for (var iL=0; iL<nL; iL++) {
+			
+			var lstm_prms = model.rnn_layers[iL];
+			var { h, c } = prev_states[iL];
+			var { h, c } = lstm_cell(x, h, c, lstm_prms) ;
+			states.push({ h, c });
+		
+			x = h;
+		}
+		
+		var prev_char = next_char;
+		var next_char_probs = softmax_output_layer_to_next_character(h, model);
+		var next_char = ([ " ", "\n", "\t", "{", "}", "(", ")", "[", "]" ].indexOf(prev_char)!=-1)  
+			? pick_in_cumulative(next_char_probs)
+			: next_char_probs[0].c ;
+		
+		txt += next_char;
 	}
+	
 	console.log("\n\n ---- GENERATED TEXT ---- \n" + txt + "\n")
 	return txt;
 	
@@ -230,9 +241,9 @@ function test_node() {
 
 	function stepprint(x, h, c) {
 		console.log()
-		console.log ("x", x)
-		console.log ("h", shape(h))
-		console.log ("c", shape(c))
+		console.log ("x", shape(x), x.slice(0,5))
+		console.log ("h", shape(h), h.slice(0,5))
+		console.log ("c", shape(c), c.slice(0,5))
 	}
 }
 
@@ -249,7 +260,7 @@ function softmax_output_layer_to_probs(h, model) {
 
 function softmax_output_layer_to_next_character(h, model) {
 	var probs = softmax_output_layer_to_probs(h, model);
-	var idx_to_char = data["chars"];
+	var idx_to_char = model.index_to_text;
 	var char_prob = probs.map((prob, idx) => { return { c: idx_to_char[idx], prob: prob } });
 	var char_prob_top = char_prob.sort((a,b) => b.prob-a.prob) // .slice(0,10);
 	//console.log(char_prob_top);

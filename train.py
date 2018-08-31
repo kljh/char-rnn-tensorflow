@@ -19,7 +19,7 @@ parser.add_argument('--log_dir', type=str, default='logs',
                     help='directory to store tensorboard logs')
 parser.add_argument('--save_every', type=int, default=1000,
                     help='Save frequency. Number of passes between checkpoints of the model.')
-parser.add_argument('--init_from', type=str, default=None, #'save/js', # None
+parser.add_argument('--init_from', type=str, default=None, #''save/js' or  None
                     help="""continue training from saved model at this path (usually "save").
                         Path must contain files saved by previous training process:
                         'config.pkl'        : configuration;
@@ -34,7 +34,7 @@ parser.add_argument('--model', type=str, default='lstm',
                     help='lstm, rnn, gru, or nas')
 parser.add_argument('--rnn_size', type=int, default=56,  #  128
                     help='size of RNN hidden state')
-parser.add_argument('--num_layers', type=int, default=1,  # 2
+parser.add_argument('--num_layers', type=int, default=2,  # 2
                     help='number of layers in the RNN')
 # Optimization
 parser.add_argument('--seq_length', type=int, default=50,
