@@ -6,13 +6,6 @@
 <title>Recurrent Neural Network</title>
 <script src="save/js/model_data_layer2_n56.js"></script>
 <script src="quicktest.js"></script>
-
-<!--
-<script src="https://d3js.org/d3.v3.js"></script>
-<script src="d3scatter.js"></script>
-<link rel="stylesheet" href="d3scatter.css">
--->
-
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
 
 <style>
@@ -59,10 +52,10 @@ $(document).ready( function () {
 	.done(onModelDataLoaded)
 	.fail(err => alert("failed to load data CSV. "+err));
 	*/
-	
+
 	onModelDataLoaded();
 	onInputChars(document.getElementById("text").value);
-	
+
 	$("#text").keyup(function (ev) {
 		var input = ev.target;
 		var txt = input.value;
@@ -81,7 +74,7 @@ $(document).ready( function () {
 		}
 		onInputChars(txt);
 	});
-	
+
 	// prevent losing focus on TAB key
 	$("textarea").keydown(function(e) {
 		if(e.keyCode === 9) { // tab was pressed
@@ -104,25 +97,25 @@ $(document).ready( function () {
 			e.preventDefault();
 		}
 	});
-	
+
 	var model, iterations;
 	function onModelDataLoaded()  {
 		model = model_from_data(data);
 		iterations = [ model_initial_state(model.num_layers, model.rnn_size) ];
 		console.log("model", model);
 		console.log("iterations", iterations);
-		
+
 		$("#info").html('<pre>Network info: \n'
 			+ ' num_layers: '+model.num_layers+(model.num_layers==1?' <span style="color: #DC143C;">(only)</span>':'')+'\n'
 			+ ' rnn_size: '+model.rnn_size+(model.rnn_size<64?' <span style="color: #DC143C;">(quite small)</span>':'')+'\n' + '</pre>');
-	}	
+	}
 
 	function onInputChars(txt) {
 		var last_iter ;
-		while ( iterations.length < (txt.length+1) ) 
+		while ( iterations.length < (txt.length+1) )
 			last_iter = onInputCharAppend(txt[iterations.length-1]);
 		console.log(last_iter);
-		
+
 		var last_iter = iterations[iterations.length-1];
 		display_next_probas(last_iter)
 		return last_iter;
@@ -155,7 +148,7 @@ $(document).ready( function () {
 	$("#sample_many").click(ev => { for (var i=0; i<80;i++) sample(3); });
 	function sample(mode) {
 		var last_iter = iterations[iterations.length-1];
-		
+
 		var txt = document.getElementById("text").value;
 		var last_char = txt[txt.length-1];
 		var next_char;
@@ -186,7 +179,7 @@ $(document).ready( function () {
 <h2>A quick dive into recurrent neural network (LSTM).</h2>
 
 <p>LTSM recurrent neural network working at character level trained on Javascript code.
-Try typing code in the text area below and see what it predicts as the next character. 
+Try typing code in the text area below and see what it predicts as the next character.
 Typical things it recognized well : a few keywords <tt>function</tt>, <tt>this</tt> or <tt>return</tt> and vocabulary <tt>length</tt>, <tt>data</tt> or <tt>color</tt>, common structures <tt>for (var i=0; i&lt;n; i++)</tt>, and a bit of indentation (with detection of minified mode).</p>
 
 <div id="info"></div>
@@ -205,7 +198,7 @@ Typical things it recognized well : a few keywords <tt>function</tt>, <tt>this</
 <h2>A (not so) quick quiz about LSTM</h2>
 
 <p>Screenshot below from Tensorboard : <br/>
-This calculation graph is a Tensorflow LTSM cell. It is almost a direct transcription of formulas in Wikipedia article (and other sources).  
+This calculation graph is a Tensorflow LTSM cell. It is almost a direct transcription of formulas in Wikipedia article (and other sources).
 But what is the <tt>y</tt> additive term highlighted in red ?
 </p>
 
@@ -218,33 +211,21 @@ But what is the <tt>y</tt> additive term highlighted in red ?
 <div style="font-size: smaller;">
 
 	<p>
-	Refs 
+	Refs:
 	<ul>
 	<li>Andrej Karpathy <a href="http://karpathy.github.io/2015/05/21/rnn-effectiveness/">The Unreasonable Effectiveness of Recurrent Neural Networks</a> <br/>
 		and <a href="https://gist.github.com/karpathy/d4dee566867f8291f086">Minimal character-level Vanilla RNN model</a> in Python/numpy only.
 	<li>Christopher Olah <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">Understanding LSTMs</a>
-	<!-- 
-	https://quickdraw.withgoogle.com/data/cat
-	https://www.tensorflow.org/tutorials/sequences/recurrent
-	-->
 	</ul>
 	</p>
 
 	<p>
-	Next steps : 
+	Next:
 	<ul>
-	<li>Display graphicaly network internal states
-	<li>Generating (and play) abc music notation (see <a href="https://abcjs.net/abcjs-editor.html">interactive editor</a> and many ML blogs)
-	<!--
-	http://touchpianist.com/
-	https://towardsdatascience.com/how-to-generate-music-using-a-lstm-neural-network-in-keras-68786834d4c5
-	https://highnoongmt.wordpress.com/2015/05/22/lisls-stis-recurrent-neural-networks-for-folk-music-generation/
-	https://github.com/paulrosen/abcjs
-	https://abcjs.net/abcjs-editor.html
-	http://www.hexahedria.com/2015/08/03/composing-music-with-recurrent-neural-networks/
-	https://magenta.tensorflow.org/performance-rnn
-	https://www.beepbox.co/
-	-->
+	<li>Display graphically embedding projection.
+	<li>Display graphically network internal states
+	<li>Generating (and play) abc music notation (see <a href="https://abcjs.net/abcjs-editor.html">interactive editor</a> and many ML blogs). <a href="quicktest2.html">Now done :-).</a>
+	<li>Generating drawing. <a href="https://quickdraw.withgoogle.com/data/cat">Pencil</a> or <a href="https://github.com/anishathalye/neural-style">Painting</a>.
 	</ul>
 	</p>
 
