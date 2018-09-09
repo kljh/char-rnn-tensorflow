@@ -11,7 +11,7 @@
 <!-- abcjs -->
 <link rel="stylesheet" href="abc/fonts/font-awesome.min.css">
 <link rel="stylesheet" href="abc/abcjs-midi.css" media="all" rel="stylesheet" >
-<script src="abc/abcjs_midi_5.1.2-min.js.download" type="text/javascript"></script>
+<script src="abc/abcjs_midi_5.1.2-min.js" type="text/javascript"></script>
 <style>
 	.abcjs-inline-midi {
 		max-width: 740px;
@@ -170,7 +170,7 @@ $(document).ready( function () {
 		document.getElementById("text").value = txt;
 		onInputChars(txt);
 		// generate
-		for (var i=0; i<180;i++) sample(4);
+		for (var i=0; i<380;i++) sample(4);
 		trigger_abc_event_handler();
 	});
 	$("#no_rnn").click(ev => no_rnn());
@@ -207,7 +207,7 @@ $(document).ready( function () {
 	}
 
 	// sample a bit of music
-	for (var i=0; i<180;i++) sample(4);
+	for (var i=0; i<380;i++) sample(4);
 	trigger_abc_event_handler();
 
 
@@ -223,7 +223,7 @@ $(document).ready( function () {
 		var abc = "M:4/4\nK:C\n";
 		for (var i=0;  i<4; i++) {
 			abc += "|"
-			for (var j=0;  j<12; j++) {
+			for (var j=0;  j<18; j++) {
 				var note = pick(notes);
 				var duration = pick(durations);
 				abc += note+duration;
@@ -346,9 +346,10 @@ K:CMaj
 
 	<li>ABC Dataset :
 	<a href="http://trillian.mit.edu/~jc/music/book/">John Chambers page</a>,
-	<a href="http://www.campin.me.uk">James Aird's airs</a> and
-	<a href="http://abc.sourceforge.net/NMD/">Nottingham Music Database</a>
-
+	<a href="http://www.campin.me.uk">James Aird's airs</a>,
+	<a href="http://abc.sourceforge.net/NMD/">Nottingham Music Database</a> and
+	<a href="https://github.com/IraKorshunova/folk-rnn/tree/master/data">normalized data</a>
+	
 	<li>ABC JS and Docs
 	<a href="https://github.com/paulrosen/abcjs">AbcJs</a>,
 	<a href="https://abcjs.net/abcjs-editor.html">editor</a>
