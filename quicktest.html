@@ -7,6 +7,8 @@
 <script src="save/js/model_data_layer2_n56.js"></script>
 <script src="quicktest.js"></script>
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
 <style>
 body {
@@ -108,6 +110,8 @@ $(document).ready( function () {
 		$("#info").html('<pre>Network info: \n'
 			+ ' num_layers: '+model.num_layers+(model.num_layers==1?' <span style="color: #DC143C;">(only)</span>':'')+'\n'
 			+ ' rnn_size: '+model.rnn_size+(model.rnn_size<64?' <span style="color: #DC143C;">(quite small)</span>':'')+'\n' + '</pre>');
+
+		embedding_plot();
 	}
 
 	function onInputChars(txt) {
@@ -125,16 +129,20 @@ $(document).ready( function () {
 		return last_iter;
 	}
 
+	function char_label_for_whitespace(c) {
+		if (c==" ") c = "[space]";
+		if (c=="\n") c = "[newline]";
+		if (c=="\r") c = "[linefeed]"
+		if (c=="\t") c = "[tab]";
+		return c;
+	}
+
 	function display_next_probas(last_iter) {
 		var probs = last_iter.next_char_probs.slice(0, 7);
 		var n = probs.length;
 		var html = "";
 		for (var i=0; i<n; i++) {
-			var c = probs[i].c;
-			if (c==" ") c = "[space]";
-			if (c=="\n") c = "[newline]";
-			if (c=="\r") c = "[linefeed]"
-			if (c=="\t") c = "[tab]";
+			var c = char_label_for_whitespace(probs[i].c);
 			var p = probs[i].prob;
 			var pct = Math.round(p*10000)/100;
 			var px = Math.round(p*1000);
@@ -170,6 +178,47 @@ $(document).ready( function () {
 		onInputChars(txt);
 	}
 
+	function embedding_plot() {
+		var i0=0, i1=2;
+
+		var text = model.index_to_text.map(c => "    "+char_label_for_whitespace(c))
+			x = model.embedding.map(em => em[i0]),
+			y = model.embedding.map(em => em[i1]);
+
+		var filter = (x, i) => model.index_to_text[i].match(/[A-Za-z]/);
+		var trace1 = {
+			x: x.filter(filter),
+			y: y.filter(filter),
+			text: text.filter(filter),
+			mode: 'markers+text',
+			type: 'scatter',
+			name: 'Alpha'
+			};
+
+		var filter = (x, i) => model.index_to_text[i].match(/[0-9]/);
+		var trace2 = {
+			x: x.filter(filter),
+			y: y.filter(filter),
+			text: text.filter(filter),
+			mode: 'markers+text',
+			type: 'scatter',
+			name: 'Numeric'
+			};
+
+		var filter = (x, i) => model.index_to_text[i].match(/[^A-Za-z0-9]/);
+		var trace3 = {
+			x: x.filter(filter),
+			y: y.filter(filter),
+			text: text.filter(filter),
+			mode: 'markers+text',
+			type: 'scatter',
+			name: 'Special chars'
+			};
+
+		var data = [ trace1, trace2, trace3 ];
+		Plotly.newPlot('embedding_scatter', data);
+	}
+
 });
 </script>
 </head>
@@ -202,10 +251,43 @@ This calculation graph is a Tensorflow LTSM cell. It is almost a direct transcri
 But what is the <tt>y</tt> additive term highlighted in red ?
 </p>
 
+<table><tr><td>
+	<p>
+	<a href="https://en.wikipedia.org/wiki/Long_short-term_memory">Wikipedia formulas</a>
+	and <a href="http://colah.github.io/posts/2015-08-Understanding-LSTMs/">C. Olah graph</a>:
+	\[ \begin{align}
+	f_t &= \sigma_g(W_{f} x_t + U_{f} h_{t-1} + b_f) \\
+	i_t &= \sigma_g(W_{i} x_t + U_{i} h_{t-1} + b_i) \\
+	o_t &= \sigma_g(W_{o} x_t + U_{o} h_{t-1} + b_o) \\
+	c_t &= f_t \circ c_{t-1} + i_t \circ \sigma_c(W_{c} x_t + U_{c} h_{t-1} + b_c) \\
+	h_t &= o_t \circ \sigma_h(c_t)
+	\end{align} \]
+	</p>
+</td><td>
+	&nbsp;&nbsp;&nbsp;
+</td><td>
+	<img src="LSTM2.png" style="width: 200px;">
+</td></tr></table>
+
 <p>
+<u>Tensorboard version:</u><br/>
 <img src="LSTM.png">
 </p>
 
+<h2>Embedding plot</h2>
+
+<p>An embedding is a mapping of each <em>of possibly many</em> possible input (char or words) onto a vector of smaller dimension used as neural network input.
+It is akin a PCA, where the factors are such that the subsequent classification or regression works best.</p>
+</p>
+
+<p>
+Embedding of present character level RNN looks like below:<br/>
+<div id="embedding_scatter"></div>
+</p>
+<p>
+... which is instructive but nowhere as nice of word level or even image level embedding visualisation:<br/><br/>
+<img src="embedding-nearest-points.png" style="max-width: 600px;"></div>
+</p>
 
 <div style="height:50px;"></div>
 <div style="font-size: smaller;">
